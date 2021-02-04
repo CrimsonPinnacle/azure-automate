@@ -53,13 +53,13 @@ param(
     [string]
     $TenantId,
    
-    [Parameter(Mandatory=$True)]
+    [Parameter(Mandatory=$False)]
     [string]
-    $ServicePrincipalId,
+    $ServicePrincipalId = $null,
    
-    [Parameter(Mandatory=$True)]
+    [Parameter(Mandatory=$False)]
     [string]
-    $ServicePrincipalPassword,
+    $ServicePrincipalPassword = $null,
 
     [Parameter(Mandatory=$False)]
     [bool]
@@ -206,17 +206,25 @@ Function DeleteResourceGroups {
 $ErrorActionPreference = "Stop"
 
 # Sign In
-$securePassword = ConvertTo-SecureString -String $ServicePrincipalPassword -AsPlainText -Force
-$credentials = New-Object -TypeName System.Management.Automation.PSCredential($ServicePrincipalId, $securePassword)
-
 $azureProfile = $null
 
 try {
     # Remove stale context
     Clear-AzContext -Force
     
-    Write-Host "Login to subscription '${SubscriptionId}'..." -ForegroundColor "White"
-    $azureProfile =  Connect-AzAccount -Credential $credentials -ServicePrincipal -Tenant $TenantId -SubscriptionId $SubscriptionId
+    Write-Host "Signing into subscription '${SubscriptionId}'..." -ForegroundColor "White"
+
+    if (-Not [string]::IsNullOrEmpty($ServicePrincipalId) -Or -Not [string]::IsNullOrEmpty($ServicePrincipalPassword)) {
+        Write-Host "Signing in with Service Principal..."
+        $securePassword = ConvertTo-SecureString -String $ServicePrincipalPassword -AsPlainText -Force
+        $credentials = New-Object -TypeName System.Management.Automation.PSCredential($ServicePrincipalId, $securePassword)
+
+        $azureProfile =  Connect-AzAccount -Credential $credentials -ServicePrincipal -Tenant $TenantId -SubscriptionId $SubscriptionId
+    } else {
+        Write-Host "Signing in with user account..."
+        $azureProfile =  Connect-AzAccount -Tenant $TenantId -SubscriptionId $SubscriptionId
+    }
+    
     Write-Host "Login to subscription '${SubscriptionId}' successful!" -ForegroundColor "Green"
 }
 catch {
